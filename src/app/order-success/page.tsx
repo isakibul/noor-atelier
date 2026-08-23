@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { Footer } from "@/components/footer";
+import { SiteHeader } from "@/components/site-header";
+export default function OrderSuccessPage() { return <main><SiteHeader/><section className="mx-auto max-w-3xl px-5 py-28 text-center"><p className="font-mono text-[10px] tracking-[.15em] text-stone-500">ORDER CONFIRMED · #NOOR-2026-1042</p><h1 className="mt-6 font-display text-6xl leading-none">Thank you,<br/><em className="text-wine">beautiful.</em></h1><p className="mx-auto mt-7 max-w-md text-sm leading-6 text-stone-600">Your order is confirmed. We&rsquo;ve sent a copy of the details to your email and will be in touch when it begins its journey to you.</p><div className="mt-10 flex justify-center gap-5"><Link href="/shop" className="bg-wine px-5 py-4 text-xs text-white">Continue shopping</Link><Link href="/account" className="border border-line px-5 py-4 text-xs">View my orders</Link></div></section><Footer/></main>; }

@@ -1,0 +1,30 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: noor-mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: noor
+      MONGO_INITDB_ROOT_PASSWORD: change-this-password
+      MONGO_INITDB_DATABASE: noor_atelier
+    volumes:
+      - mongodb_data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: noor-mongo-express
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://noor:change-this-password@mongodb:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: change-this-admin-password
+
+volumes:
+  mongodb_data:

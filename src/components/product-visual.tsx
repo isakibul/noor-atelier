@@ -1,0 +1,2 @@
+import type { Product } from "@/lib/products";
+export function ProductVisual({ product, large = false }: { product: Product; large?: boolean }) { return <div className={`${product.tone || "bg-[#e8ddd2]"} relative ${large ? "min-h-[420px]" : "h-72"} overflow-hidden`}><img src={product.image} alt={product.name} className="h-full w-full object-cover object-center transition duration-500 hover:scale-[1.03]" /></div>; }
