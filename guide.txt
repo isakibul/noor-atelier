@@ -1,0 +1,23 @@
+NOOR ATELIER - HOW TO RUN THE PROJECT
+======================================
+
+1. Install Node.js 20 or newer on the computer.
+
+2. Open a terminal inside the noor_atelier project folder.
+
+3. Install the required packages. Run this once after moving the project to a
+   new computer:
+
+     npm install
+
+4. Start the project:
+
+     npm run dev
+
+5. Open this address in a browser:
+
+     http://localhost:3000
+
+
+No Docker or database server is required. The project uses its local SQLite
+database file automatically.

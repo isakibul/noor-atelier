@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { forbidden, requireAdminApi } from "@/lib/api";
-import { connectDb } from "@/lib/db";
-import { Product } from "@/models/Product";
+import { execute, productJson, query, type ProductRow } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -22,20 +21,21 @@ const schema = z.object({
 
 export async function GET() {
   if (!await requireAdminApi()) return forbidden();
-  await connectDb();
-  return NextResponse.json(await Product.find().sort({ createdAt: -1 }).lean());
+  const products = await query<ProductRow[]>("SELECT id, name, slug, category, collection, price, tone, image, description, sizes, featured, active, stock, created_at AS createdAt, updated_at AS updatedAt FROM products ORDER BY created_at DESC");
+  return NextResponse.json(products.map(product => productJson(product, true)));
 }
 
 export async function POST(request: Request) {
   if (!await requireAdminApi()) return forbidden();
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Please check the product details." }, { status: 400 });
-  await connectDb();
   try {
-    const product = await Product.create(parsed.data);
-    return NextResponse.json(product, { status: 201 });
+    const product = parsed.data;
+    const result = await execute("INSERT INTO products (name, slug, category, collection, price, image, description, stock, featured, active, sizes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [product.name, product.slug, product.category, product.collection, product.price, product.image, product.description, product.stock, product.featured, product.active, JSON.stringify(product.sizes)]);
+    const [created] = await query<ProductRow[]>("SELECT id, name, slug, category, collection, price, tone, image, description, sizes, featured, active, stock, created_at AS createdAt, updated_at AS updatedAt FROM products WHERE id = ?", [result.insertId]);
+    return NextResponse.json(productJson(created, true), { status: 201 });
   } catch (error) {
-    if ((error as { code?: number }).code === 11000) return NextResponse.json({ error: "A product with that slug already exists." }, { status: 409 });
+    if ((error as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") return NextResponse.json({ error: "A product with that slug already exists." }, { status: 409 });
     console.error("Product creation failed:", error);
     return NextResponse.json({ error: "Unable to create the product." }, { status: 500 });
   }

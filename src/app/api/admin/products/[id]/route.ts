@@ -1,9 +1,7 @@
-import { isValidObjectId } from "mongoose";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { forbidden, requireAdminApi } from "@/lib/api";
-import { connectDb } from "@/lib/db";
-import { Product } from "@/models/Product";
+import { execute, productJson, query, type ProductRow } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -21,19 +19,21 @@ const schema = z.object({
   sizes: z.array(z.string().trim().min(1).max(10)).min(1).max(10),
 });
 
-const invalidId = (id: string) => !isValidObjectId(id);
+const invalidId = (id: string) => !/^\d+$/.test(id);
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   if (!await requireAdminApi()) return forbidden();
   if (invalidId(params.id)) return NextResponse.json({ error: "Product not found." }, { status: 404 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Please check the product details." }, { status: 400 });
-  await connectDb();
   try {
-    const product = await Product.findByIdAndUpdate(params.id, parsed.data, { new: true, runValidators: true });
-    return product ? NextResponse.json(product) : NextResponse.json({ error: "Product not found." }, { status: 404 });
+    const product = parsed.data;
+    const result = await execute("UPDATE products SET name = ?, slug = ?, category = ?, collection = ?, price = ?, image = ?, description = ?, stock = ?, featured = ?, active = ?, sizes = ? WHERE id = ?", [product.name, product.slug, product.category, product.collection, product.price, product.image, product.description, product.stock, product.featured, product.active, JSON.stringify(product.sizes), params.id]);
+    if (!result.affectedRows) return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    const [updated] = await query<ProductRow[]>("SELECT id, name, slug, category, collection, price, tone, image, description, sizes, featured, active, stock, created_at AS createdAt, updated_at AS updatedAt FROM products WHERE id = ?", [params.id]);
+    return NextResponse.json(productJson(updated, true));
   } catch (error) {
-    if ((error as { code?: number }).code === 11000) return NextResponse.json({ error: "A product with that slug already exists." }, { status: 409 });
+    if ((error as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") return NextResponse.json({ error: "A product with that slug already exists." }, { status: 409 });
     console.error("Product update failed:", error);
     return NextResponse.json({ error: "Unable to update the product." }, { status: 500 });
   }
@@ -42,7 +42,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
   if (!await requireAdminApi()) return forbidden();
   if (invalidId(params.id)) return NextResponse.json({ error: "Product not found." }, { status: 404 });
-  await connectDb();
-  const product = await Product.findByIdAndDelete(params.id);
-  return product ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Product not found." }, { status: 404 });
+  const result = await execute("DELETE FROM products WHERE id = ?", [params.id]);
+  return result.affectedRows ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Product not found." }, { status: 404 });
 }
