@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { query } from "@/lib/db";
 
 export type SessionUser = {
   id: string;
@@ -37,12 +38,18 @@ export async function signSession(user: SessionUser) {
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  const token = cookies().get(sessionCookie)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(sessionCookie)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    if (typeof payload.id !== "string" || typeof payload.email !== "string" || typeof payload.name !== "string" || (payload.role !== "customer" && payload.role !== "admin")) return null;
-    return { id: payload.id, email: payload.email, name: payload.name, role: payload.role };
+    if (typeof payload.id !== "string" || !/^\d+$/.test(payload.id)) return null;
+    const [user] = await query<Array<{ id: number; name: string; email: string; role: "customer" | "admin" }>>(
+      "SELECT id, name, email, role FROM users WHERE id = ? LIMIT 1",
+      [Number(payload.id)],
+    );
+    if (!user) return null;
+    return { id: String(user.id), email: user.email, name: user.name, role: user.role };
   } catch {
     return null;
   }
@@ -50,6 +57,7 @@ export async function getSession(): Promise<SessionUser | null> {
 
 export async function requireAdmin() {
   const session = await getSession();
-  if (!session || session.role !== "admin") redirect("/admin-login");
+  if (!session) redirect("/login");
+  if (session.role !== "admin") redirect("/account");
   return session;
 }

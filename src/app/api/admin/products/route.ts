@@ -16,7 +16,7 @@ const schema = z.object({
   stock: z.number().int().nonnegative().default(0),
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
-  sizes: z.array(z.string().trim().min(1).max(10)).min(1).max(10).default(["S", "M", "L", "XL"]),
+  sizes: z.array(z.string().trim().min(1).max(20)).min(1).max(10).default(["S", "M", "L", "XL"]),
 });
 
 export async function GET() {

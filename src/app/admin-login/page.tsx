@@ -1,4 +1,5 @@
-"use client";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-export default function AdminLoginPage() { const router = useRouter(); const [error, setError] = useState(""); const [loading, setLoading] = useState(false); const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setLoading(true); setError(""); const form = new FormData(event.currentTarget); const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.get("email"), password: form.get("password") }) }); const data = await response.json(); if (!response.ok || data.user.role !== "admin") { setError(data.error || "This account is not an administrator."); setLoading(false); return; } router.push("/admin"); router.refresh(); }; return <main className="grid min-h-screen place-items-center bg-[#f5f2ed] p-5"><form onSubmit={submit} className="w-full max-w-md border border-line bg-white p-8 shadow-panel"><p className="font-mono text-[10px] tracking-[.14em] text-stone-500">NOOR ATELIER</p><h1 className="mt-4 font-display text-4xl">Admin sign in</h1><p className="mt-3 text-sm text-stone-600">Use the administrator credentials created by the seed script.</p><div className="mt-7 grid gap-3"><input name="email" required type="email" placeholder="Email address" className="border border-line p-3 text-sm outline-wine"/><input name="password" required type="password" placeholder="Password" className="border border-line p-3 text-sm outline-wine"/></div>{error && <p className="mt-4 text-xs text-red-700">{error}</p>}<button disabled={loading} className="mt-6 w-full bg-wine py-4 text-xs text-white disabled:opacity-60">{loading ? "Signing in…" : "Sign in"}</button></form></main>; }
+import { redirect } from "next/navigation";
+
+export default function AdminLoginRedirect() {
+  redirect("/login");
+}

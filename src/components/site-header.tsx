@@ -2,8 +2,8 @@
 
 import { useStore } from "@/components/store-provider";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -15,13 +15,16 @@ const navItems = [
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "customer" | "admin" } | null | undefined>(undefined);
   const pathname = usePathname();
-  const { cart, hydrated } = useStore();
+  const router = useRouter();
+  const { cart, wishlist, hydrated, openCart } = useStore();
   const count = hydrated
     ? cart.reduce((sum, item) => sum + item.quantity, 0)
     : 0;
+  const wishlistCount = hydrated ? wishlist.length : 0;
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     const syncViewport = () => {
@@ -41,7 +44,24 @@ export function SiteHeader() {
     document.documentElement.style.overflow = "hidden";
     return () => { document.body.style.overflow = previousBodyOverflow; document.documentElement.style.overflow = previousHtmlOverflow; };
   }, [open]);
-  const logout = async () => { await fetch("/api/auth/logout", { method: "POST" }); setUser(null); setProfileOpen(false); setOpen(false); window.location.assign("/"); };
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileOpen]);
+  const logout = async () => { await fetch("/api/auth/logout", { method: "POST" }); setUser(null); setProfileOpen(false); setOpen(false); router.push("/"); router.refresh(); };
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-[#fdfbf8]/95 shadow-[0_2px_18px_rgba(50,20,20,.04)] backdrop-blur">
       <div className="mx-auto max-w-7xl px-5 py-3 lg:px-10">
@@ -80,18 +100,24 @@ export function SiteHeader() {
           <div className="flex shrink-0 items-center gap-2 text-ink">
             <Link
               href="/wishlist"
-              aria-label="Wishlist"
-              className="hidden h-10 w-10 place-items-center rounded-full border border-line text-lg transition hover:border-wine hover:text-wine md:grid"
+              aria-label={`Wishlist, ${wishlistCount} saved`}
+              className="relative hidden h-10 w-10 place-items-center rounded-full border border-line text-lg transition hover:border-wine hover:text-wine md:grid"
             >
               ♡
+              {wishlistCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full border-2 border-[#fdfbf8] bg-ink px-1 text-[9px] font-medium text-white">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
-            <div className="relative">
+            <div ref={profileRef} className="relative">
               <button onClick={() => setProfileOpen((value) => !value)} aria-label="Open profile menu" aria-expanded={profileOpen} className={`grid h-10 w-10 place-items-center rounded-full border text-xs transition ${user ? "border-wine bg-wine text-white" : "border-line hover:border-wine hover:text-wine"}`}>{user ? user.name.charAt(0).toUpperCase() : <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.7-3.5 3-5.2 7-5.2s6.3 1.7 7 5.2"/></svg>}</button>
               {profileOpen && <div className="absolute right-0 top-12 z-50 w-56 border border-line bg-white p-2 shadow-panel">{user ? <><div className="border-b border-line px-3 py-3"><p className="font-display text-lg">{user.name}</p><p className="mt-1 truncate font-mono text-[9px] text-stone-500">{user.email}</p></div><Link href="/account" onClick={() => setProfileOpen(false)} className="mt-1 block rounded-lg px-3 py-2 text-xs hover:bg-[#f5f2ed]">My account</Link>{user.role === "admin" && <Link href="/admin" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2 text-xs text-wine hover:bg-[#f5f2ed]">Admin dashboard ↗</Link>}<button onClick={logout} className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f5f2ed]">Sign out</button></> : <><p className="px-3 py-3 font-display text-lg">Welcome to Noor</p><Link href="/login" onClick={() => setProfileOpen(false)} className="block rounded-lg bg-wine px-3 py-2 text-center text-xs text-white">Sign in</Link><Link href="/register" onClick={() => setProfileOpen(false)} className="mt-1 block rounded-lg px-3 py-2 text-center text-xs hover:bg-[#f5f2ed]">Create account</Link></>}</div>}
             </div>
-            <Link
-              href="/cart"
-              aria-label={`Shopping bag, ${count} items`}
+            <button
+              type="button"
+              onClick={openCart}
+              aria-label={`Open shopping bag, ${count} items`}
               className="relative grid h-10 w-10 place-items-center rounded-full border border-line transition hover:border-wine hover:bg-wine hover:text-white"
             >
               <svg
@@ -105,11 +131,11 @@ export function SiteHeader() {
                 <path d="M9 8a3 3 0 0 1 6 0" />
               </svg>
               {count > 0 && (
-                <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full border-2 border-[#fdfbf8] bg-wine px-1 font-mono text-[9px] text-white">
+                <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full border-2 border-[#fdfbf8] bg-wine px-1 text-[9px] font-medium text-white">
                   {count}
                 </span>
               )}
-            </Link>
+            </button>
             {isMobile && (
               <button
                 aria-label="Open navigation menu"

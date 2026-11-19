@@ -16,21 +16,22 @@ const schema = z.object({
   stock: z.number().int().nonnegative(),
   featured: z.boolean(),
   active: z.boolean(),
-  sizes: z.array(z.string().trim().min(1).max(10)).min(1).max(10),
+  sizes: z.array(z.string().trim().min(1).max(20)).min(1).max(10),
 });
 
 const invalidId = (id: string) => !/^\d+$/.test(id);
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await requireAdminApi()) return forbidden();
-  if (invalidId(params.id)) return NextResponse.json({ error: "Product not found." }, { status: 404 });
+  const { id } = await params;
+  if (invalidId(id)) return NextResponse.json({ error: "Product not found." }, { status: 404 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Please check the product details." }, { status: 400 });
   try {
     const product = parsed.data;
-    const result = await execute("UPDATE products SET name = ?, slug = ?, category = ?, collection = ?, price = ?, image = ?, description = ?, stock = ?, featured = ?, active = ?, sizes = ? WHERE id = ?", [product.name, product.slug, product.category, product.collection, product.price, product.image, product.description, product.stock, product.featured, product.active, JSON.stringify(product.sizes), params.id]);
+    const result = await execute("UPDATE products SET name = ?, slug = ?, category = ?, collection = ?, price = ?, image = ?, description = ?, stock = ?, featured = ?, active = ?, sizes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [product.name, product.slug, product.category, product.collection, product.price, product.image, product.description, product.stock, product.featured, product.active, JSON.stringify(product.sizes), id]);
     if (!result.affectedRows) return NextResponse.json({ error: "Product not found." }, { status: 404 });
-    const [updated] = await query<ProductRow[]>("SELECT id, name, slug, category, collection, price, tone, image, description, sizes, featured, active, stock, created_at AS createdAt, updated_at AS updatedAt FROM products WHERE id = ?", [params.id]);
+    const [updated] = await query<ProductRow[]>("SELECT id, name, slug, category, collection, price, tone, image, description, sizes, featured, active, stock, created_at AS createdAt, updated_at AS updatedAt FROM products WHERE id = ?", [id]);
     return NextResponse.json(productJson(updated, true));
   } catch (error) {
     if ((error as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") return NextResponse.json({ error: "A product with that slug already exists." }, { status: 409 });
@@ -39,9 +40,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!await requireAdminApi()) return forbidden();
-  if (invalidId(params.id)) return NextResponse.json({ error: "Product not found." }, { status: 404 });
-  const result = await execute("DELETE FROM products WHERE id = ?", [params.id]);
+  const { id } = await params;
+  if (invalidId(id)) return NextResponse.json({ error: "Product not found." }, { status: 404 });
+  const result = await execute("DELETE FROM products WHERE id = ?", [id]);
   return result.affectedRows ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Product not found." }, { status: 404 });
 }

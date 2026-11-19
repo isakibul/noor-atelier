@@ -21,3 +21,8 @@ NOOR ATELIER - HOW TO RUN THE PROJECT
 
 No Docker or database server is required. The project uses its local SQLite
 database file automatically.
+
+The administrator account is provisioned from ADMIN_EMAIL and ADMIN_PASSWORD
+in .env when the database is initialized. Sign in at /login with those
+credentials. The configured email and password are synchronized to the admin
+account at each fresh database initialization.
